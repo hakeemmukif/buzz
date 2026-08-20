@@ -9,6 +9,7 @@ import {
 import { cacheSearchHitEvent } from "@/app/navigation/searchHitEventCache";
 import { resolveSearchHitDestination } from "@/app/navigation/resolveSearchHitDestination";
 import type { SearchHit } from "@/shared/api/types";
+import { beginChannelSwitchTrace } from "@/shared/lib/channelSwitchPerf";
 
 type NavigationBehavior = {
   force?: boolean;
@@ -253,8 +254,11 @@ export function useAppNavigation() {
         thread?: string;
         threadRootId?: string | null;
       },
-    ) =>
-      commitNavigation(
+    ) => {
+      // Every channel navigation entry point funnels through here, so this
+      // is the single click-time anchor for the switch trace.
+      beginChannelSwitchTrace(channelId);
+      return commitNavigation(
         {
           to: "/channels/$channelId",
           params: {
@@ -278,7 +282,8 @@ export function useAppNavigation() {
           replace: options?.replace,
           resetScroll: options?.messageId ? true : undefined,
         },
-      ),
+      );
+    },
     [commitNavigation],
   );
 
