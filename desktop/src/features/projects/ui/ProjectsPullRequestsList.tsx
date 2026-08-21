@@ -10,6 +10,11 @@ import type {
 import { pullRequestShareLink } from "@/features/projects/lib/projectShareLinks";
 import { selectionItemFromReview } from "@/features/projects/lib/projectSelection";
 import type { ProjectWorkItemSection } from "@/features/projects/projectWorkItems";
+import {
+  countGroupedRows,
+  sliceGroupedRows,
+  useIncrementalMount,
+} from "@/shared/hooks/useIncrementalMount";
 import { cn } from "@/shared/lib/cn";
 import {
   resolveUserLabel,
@@ -206,7 +211,7 @@ export function ProjectsPullRequestsList({
 }: ProjectsPullRequestsListProps) {
   // Grouping and per-group selection arrays are identity-stable across
   // re-renders so the memoized rows only re-render when their data changes.
-  const groups = React.useMemo(
+  const allGroups = React.useMemo(
     () =>
       groupProjectWorkItemsByProject(pullRequests).map((group) => ({
         ...group,
@@ -215,6 +220,14 @@ export function ProjectsPullRequestsList({
         ),
       })),
     [pullRequests],
+  );
+  // Mount rows progressively: a one-shot mount of hundreds of rows blocked
+  // the main thread for over a second on tab entry.
+  const mountedRowCount = useIncrementalMount(countGroupedRows(allGroups));
+  const mountedGridCount = useIncrementalMount(pullRequests.length);
+  const groups = React.useMemo(
+    () => sliceGroupedRows(allGroups, mountedRowCount),
+    [allGroups, mountedRowCount],
   );
 
   if (isLoading) {
@@ -256,15 +269,17 @@ export function ProjectsPullRequestsList({
       <div className="space-y-3">
         {loadNotice}
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {pullRequests.map(({ project, pullRequest, repository }) => (
-            <PullRequestGridCard
-              key={`${repository.id}:${pullRequest.id}`}
-              onOpen={onOpen}
-              project={project}
-              pullRequest={pullRequest}
-              repository={repository}
-            />
-          ))}
+          {pullRequests
+            .slice(0, mountedGridCount)
+            .map(({ project, pullRequest, repository }) => (
+              <PullRequestGridCard
+                key={`${repository.id}:${pullRequest.id}`}
+                onOpen={onOpen}
+                project={project}
+                pullRequest={pullRequest}
+                repository={repository}
+              />
+            ))}
         </div>
       </div>
     );
