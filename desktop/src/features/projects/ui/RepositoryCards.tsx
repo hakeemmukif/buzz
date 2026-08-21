@@ -1,3 +1,4 @@
+import * as React from "react";
 import { FolderGit2, Globe, SquareTerminal } from "lucide-react";
 
 import type {
@@ -216,7 +217,11 @@ function RepositoryActionsMenu({
   );
 }
 
-export function RepositoryGridCard(props: RepositoryItemProps) {
+// Memoized: unbounded grids/lists; identity-stable caller props keep
+// re-renders scoped to changed cards.
+export const RepositoryGridCard = React.memo(function RepositoryGridCard(
+  props: RepositoryItemProps,
+) {
   const {
     hasLocal,
     onOpen,
@@ -278,9 +283,11 @@ export function RepositoryGridCard(props: RepositoryItemProps) {
       </div>
     </Card>
   );
-}
+});
 
-export function RepositoryListRow(props: RepositoryItemProps) {
+export const RepositoryListRow = React.memo(function RepositoryListRow(
+  props: RepositoryItemProps,
+) {
   const {
     hasLocal,
     onOpen,
@@ -332,4 +339,4 @@ export function RepositoryListRow(props: RepositoryItemProps) {
       }
     />
   );
-}
+});
