@@ -728,6 +728,43 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
+    // Relay self-membership — the relay's own pubkey must be a member of its
+    // community or every relay-authored write (workflow notifications, profile,
+    // moderation notices) 403s with `relay_membership_required`. Previously this
+    // required a manual psql INSERT on fresh deployments; make it idempotent at
+    // startup instead (ON CONFLICT DO NOTHING, so restarts are harmless).
+    {
+        let member_state = Arc::clone(&state);
+        tokio::spawn(async move {
+            let tenant =
+                match buzz_relay::tenant::bind_deployment_community(
+                    &member_state.db,
+                    &member_state.config.relay_url,
+                )
+                .await
+                {
+                    Ok(ctx) => ctx,
+                    Err(e) => {
+                        warn!(
+                            error = ?e,
+                            "relay self-membership skipped: relay host is not mapped to a community"
+                        );
+                        return;
+                    }
+                };
+            let relay_pubkey_hex = member_state.relay_keypair.public_key().to_hex();
+            match member_state
+                .db
+                .add_relay_member(tenant.community(), &relay_pubkey_hex, "admin", None)
+                .await
+            {
+                Ok(true) => info!("relay self-membership provisioned (role=admin)"),
+                Ok(false) => info!("relay self-membership already present"),
+                Err(e) => warn!(error = %e, "relay self-membership provisioning failed"),
+            }
+        });
+    }
+
     // Ephemeral channel reaper — archives channels whose TTL deadline has passed.
     // Runs every 60s, matching the workflow cron loop pattern. The SQL UPDATE
     // uses `archived_at IS NULL` as a guard, so concurrent runs from multiple

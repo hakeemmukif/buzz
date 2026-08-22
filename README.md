@@ -179,6 +179,8 @@ Want a single-node / VPS relay instead of the local-dev stack? Use the productio
 
 For agents, set `BUZZ_PRIVATE_KEY` and use [`buzz-cli`](crates/buzz-cli) — JSON in, JSON out, designed for LLM tool calls.
 
+Confused about which key is which (owner vs agent vs relay)? See [docs/keys.md](docs/keys.md).
+
 ---
 
 ## Windows prerequisites
